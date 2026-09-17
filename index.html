@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cadastro de pacientes</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <main class="container">
+      <header class="page-header">
+        <h1>Cadastro de pacientes</h1>
+      </header>
+
+      <section class="card" aria-labelledby="form-title">
+        <h2 id="form-title">Novo paciente</h2>
+        <form id="patient-form">
+          <div class="form-grid">
+            <label>
+              Nome completo
+              <input id="name" name="name" type="text" autocomplete="name" required />
+            </label>
+            <label>
+              E-mail
+              <input id="email" name="email" type="email" autocomplete="email" required />
+            </label>
+            <label>
+              Telefone
+              <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="(00) 00000-0000" required />
+            </label>
+            <label>
+              Data de nascimento
+              <input id="birth-date" name="birthDate" type="date" required />
+            </label>
+          </div>
+          <button type="submit">Cadastrar paciente</button>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="list-title">
+        <div class="list-header">
+          <div>
+            <h2 id="list-title">Pacientes cadastrados</h2>
+            <p id="patient-count" class="patient-count" aria-live="polite">Total de pacientes: 0</p>
+          </div>
+          <label class="search-label">
+            Buscar por nome
+            <input id="search" type="search" placeholder="Digite um nome..." />
+          </label>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th><button id="sort-name" class="sort-button" type="button">Nome <span aria-hidden="true">↕</span></button></th>
+                <th>E-mail</th>
+                <th>Telefone</th>
+                <th>Data de nascimento</th>
+                <th>Idade</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="patient-list"></tbody>
+          </table>
+          <p id="empty-state" class="empty-state">Nenhum paciente cadastrado.</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
