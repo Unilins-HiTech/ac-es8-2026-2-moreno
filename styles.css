@@ -21,6 +21,8 @@ button:hover { background: #444; }
 .list-header { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .list-header h2 { margin-bottom: 4px; }
 .patient-count { margin-bottom: 0; color: #555; font-size: .9rem; }
+.message { margin: 12px 0; }
+.error { color: #a00; }
 .search-label { width: 280px; }
 .table-wrapper { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: .9rem; }

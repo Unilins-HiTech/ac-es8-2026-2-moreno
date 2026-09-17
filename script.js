@@ -1,26 +1,69 @@
 const STORAGE_KEY = "ac-es8-patients";
+const PATIENTS_URL = "pacientes.json";
 
 const form = document.querySelector("#patient-form");
 const patientList = document.querySelector("#patient-list");
 const patientCount = document.querySelector("#patient-count");
+const sourceCount = document.querySelector("#source-count");
 const emptyState = document.querySelector("#empty-state");
+const loadingMessage = document.querySelector("#loading-message");
+const errorMessage = document.querySelector("#error-message");
 const searchInput = document.querySelector("#search");
 const sortNameButton = document.querySelector("#sort-name");
 
-let patients = loadPatients();
+let patients = [];
 let sortDirection = "asc";
 
-function loadPatients() {
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function loadManualPatients() {
   try {
     const savedPatients = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(savedPatients) ? savedPatients : [];
+    return Array.isArray(savedPatients)
+      ? savedPatients.map((patient) => ({ ...patient, origin: "manual" }))
+      : [];
   } catch {
     return [];
   }
 }
 
-function savePatients() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+function saveManualPatients() {
+  const manualPatients = patients
+    .filter((patient) => patient.origin === "manual")
+    .map(({ origin, ...patient }) => patient);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(manualPatients));
+}
+
+async function loadPatients() {
+  loadingMessage.hidden = false;
+  errorMessage.hidden = true;
+  patientList.replaceChildren();
+  emptyState.hidden = true;
+
+  try {
+    await delay(1000);
+    const response = await fetch(PATIENTS_URL);
+    if (!response.ok) throw new Error("Não foi possível carregar os pacientes.");
+
+    const jsonPatients = await response.json();
+    if (!Array.isArray(jsonPatients)) throw new Error("Formato inválido na lista de pacientes.");
+
+    patients = jsonPatients.map((patient, index) => ({
+      ...patient,
+      id: patient.id || `json-${index}`,
+      origin: "json",
+    })).concat(loadManualPatients());
+    loadingMessage.hidden = true;
+    renderPatients();
+  } catch (error) {
+    loadingMessage.hidden = true;
+    errorMessage.textContent = `Não foi possível carregar os pacientes. ${error.message}`;
+    errorMessage.hidden = false;
+    patients = loadManualPatients();
+    renderPatients();
+  } 
 }
 
 function calculateAge(birthDate) {
@@ -61,6 +104,8 @@ function renderPatients() {
   });
 
   patientCount.textContent = `Total de pacientes: ${patients.length}`;
+  sourceCount.textContent = `Arquivo JSON: ${patients.filter((patient) => patient.origin === "json").length} | Cadastro manual: ${patients.filter((patient) => patient.origin === "manual").length}`;
+  emptyState.textContent = patients.length === 0 ? "Nenhum paciente cadastrado ainda" : "Nenhum paciente encontrado.";
   emptyState.hidden = visiblePatients.length > 0;
   sortNameButton.querySelector("span").textContent = sortDirection === "asc" ? "↑" : "↓";
 }
@@ -87,8 +132,9 @@ form.addEventListener("submit", (event) => {
     email,
     phone: data.get("phone").trim(),
     birthDate: data.get("birthDate"),
+    origin: "manual",
   });
-  savePatients();
+  saveManualPatients();
   form.reset();
   renderPatients();
 });
@@ -97,7 +143,7 @@ patientList.addEventListener("click", (event) => {
   const removeButton = event.target.closest("[data-id]");
   if (!removeButton) return;
   patients = patients.filter((patient) => patient.id !== removeButton.dataset.id);
-  savePatients();
+  saveManualPatients();
   renderPatients();
 });
 
@@ -107,4 +153,4 @@ sortNameButton.addEventListener("click", () => {
   renderPatients();
 });
 
-renderPatients();
+loadPatients();

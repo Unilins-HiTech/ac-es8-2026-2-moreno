@@ -1,0 +1,16 @@
+[
+  {
+    "id": "json-1",
+    "name": "Ana Souza",
+    "email": "ana.souza@example.com",
+    "phone": "(11) 99999-1111",
+    "birthDate": "1990-05-10"
+  },
+  {
+    "id": "json-2",
+    "name": "Bruno Lima",
+    "email": "bruno.lima@example.com",
+    "phone": "(11) 99999-2222",
+    "birthDate": "1985-09-20"
+  }
+]
