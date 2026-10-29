@@ -34,8 +34,12 @@
               <input id="birth-date" name="birthDate" type="date" required />
             </label>
           </div>
-          <button type="submit">Cadastrar paciente</button>
+          <div class="form-actions">
+            <button id="save-button" type="submit">Cadastrar paciente</button>
+            <button id="cancel-button" class="secondary-button" type="button" hidden>Cancelar edição</button>
+          </div>
         </form>
+        <p id="status-message" class="message" role="status" hidden></p>
       </section>
 
       <section class="card" aria-labelledby="list-title">
@@ -52,8 +56,6 @@
 
         <p id="loading-message" class="message" hidden>Carregando pacientes...</p>
         <p id="error-message" class="message error" hidden></p>
-        <p id="source-count" class="patient-count" aria-live="polite"></p>
-
         <div class="table-wrapper">
           <table>
             <thead>
