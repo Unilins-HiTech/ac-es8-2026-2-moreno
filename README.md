@@ -27,7 +27,21 @@ Abra `http://localhost:3000`. Para reiniciar automaticamente durante o desenvolv
 
 POST e PUT recebem JSON com `nome`, `email` e `nascimento` (`AAAA-MM-DD`). O campo `telefone` é opcional. Dados obrigatórios ausentes retornam `400`, e-mail repetido retorna `409`, e ID inexistente retorna `404`.
 
-Os dados iniciais vêm de `pacientes.json`. As alterações ficam somente na memória do servidor e são perdidas quando ele reinicia. Use apenas dados fictícios.
+O PostgreSQL do Supabase guarda os pacientes e mantém as alterações após reiniciar o servidor. `pacientes.json` continua no repositório como referência dos dois registros fictícios incluídos na criação inicial da tabela. Use apenas dados fictícios.
+
+## Conectar ao Supabase
+
+Na pasta `backend`, copie `.env.example` para `.env` e preencha a URL de conexão do PostgreSQL e `DB_SSL=true`. O arquivo `.env` é ignorado pelo Git e não deve ser enviado ao repositório. No Render, configure `DATABASE_URL` e `DB_SSL=true` nas variáveis de ambiente do serviço.
+
+Na primeira execução, crie a tabela e carregue os dados iniciais com:
+
+```bash
+cd backend
+npm run db:setup
+npm start
+```
+
+Durante o desenvolvimento, `npm run dev` carrega o `.env` automaticamente. O script de configuração pode ser executado novamente sem duplicar os pacientes iniciais.
 
 ## Publicar depois no Render
 

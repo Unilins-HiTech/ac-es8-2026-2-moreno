@@ -1,20 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const pool = require('./banco');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// O JSON fornece só os dados iniciais; as alterações ficam em memória.
-const pacientes = require('../pacientes.json').map((paciente) => ({ ...paciente }));
-let proximoId = Math.max(0, ...pacientes.map((paciente) => paciente.id)) + 1;
+const COLUNAS = 'id, nome, email, telefone, nascimento';
 
 function dadosDoPaciente(body) {
   const { nome, email, telefone, nascimento } = body ?? {};
-  if ([nome, email, nascimento].some((valor) => typeof valor !== 'string' || !valor.trim())) {
-    return null;
-  }
+  if ([nome, email, nascimento].some((valor) => typeof valor !== 'string' || !valor.trim())) return null;
   if (telefone !== undefined && typeof telefone !== 'string') return null;
   return {
     nome: nome.trim(),
@@ -24,61 +21,94 @@ function dadosDoPaciente(body) {
   };
 }
 
-function emailJaExiste(email, idIgnorado) {
-  return pacientes.some((paciente) => paciente.email === email && paciente.id !== idIgnorado);
+function idValido(id) {
+  return Number.isInteger(id) && id > 0;
 }
 
-// READ: lista todos ou filtra pelo nome informado na URL.
-app.get('/pacientes', (req, res) => {
-  const nome = String(req.query.nome ?? '').toLocaleLowerCase('pt-BR');
-  const resultado = pacientes.filter((paciente) => paciente.nome.toLocaleLowerCase('pt-BR').includes(nome));
-  res.json(resultado);
+function tratarErro(res, erro) {
+  console.error(erro);
+  if (erro.code === '23505') return res.status(409).json({ erro: 'Este e-mail já está cadastrado.' });
+  res.status(500).json({ erro: 'Erro interno do servidor.' });
+}
+
+app.get('/pacientes', async (req, res) => {
+  try {
+    const nome = String(req.query.nome ?? '').trim();
+    const resultado = nome
+      ? await pool.query(`SELECT ${COLUNAS} FROM pacientes WHERE nome ILIKE $1 ORDER BY id`, [`%${nome}%`])
+      : await pool.query(`SELECT ${COLUNAS} FROM pacientes ORDER BY id`);
+    res.json(resultado.rows);
+  } catch (erro) {
+    tratarErro(res, erro);
+  }
 });
 
-app.get('/pacientes/total', (req, res) => {
-  res.json({ total: pacientes.length });
+app.get('/pacientes/total', async (req, res) => {
+  try {
+    const resultado = await pool.query('SELECT COUNT(*)::int AS total FROM pacientes');
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    tratarErro(res, erro);
+  }
 });
 
-app.get('/pacientes/:id', (req, res) => {
-  const paciente = pacientes.find((item) => item.id === Number(req.params.id));
-  if (!paciente) return res.status(404).json({ erro: 'Paciente não encontrado.' });
-  res.json(paciente);
+app.get('/pacientes/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!idValido(id)) return res.status(400).json({ erro: 'ID inválido.' });
+  try {
+    const resultado = await pool.query(`SELECT ${COLUNAS} FROM pacientes WHERE id = $1`, [id]);
+    if (resultado.rowCount === 0) return res.status(404).json({ erro: 'Paciente não encontrado.' });
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    tratarErro(res, erro);
+  }
 });
 
-// CREATE: o servidor gera o ID do novo paciente.
-app.post('/pacientes', (req, res) => {
+app.post('/pacientes', async (req, res) => {
   const dados = dadosDoPaciente(req.body);
   if (!dados) return res.status(400).json({ erro: 'Nome, e-mail e nascimento são obrigatórios.' });
-  if (emailJaExiste(dados.email)) return res.status(409).json({ erro: 'Este e-mail já está cadastrado.' });
-
-  const paciente = { id: proximoId++, ...dados };
-  pacientes.push(paciente);
-  res.status(201).json(paciente);
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO pacientes (nome, email, telefone, nascimento)
+       VALUES ($1, $2, $3, $4) RETURNING ${COLUNAS}`,
+      [dados.nome, dados.email, dados.telefone, dados.nascimento]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    tratarErro(res, erro);
+  }
 });
 
-// UPDATE: substitui os dados do paciente encontrado pelo ID.
-app.put('/pacientes/:id', (req, res) => {
-  const paciente = pacientes.find((item) => item.id === Number(req.params.id));
-  if (!paciente) return res.status(404).json({ erro: 'Paciente não encontrado.' });
-
+app.put('/pacientes/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!idValido(id)) return res.status(400).json({ erro: 'ID inválido.' });
   const dados = dadosDoPaciente(req.body);
   if (!dados) return res.status(400).json({ erro: 'Nome, e-mail e nascimento são obrigatórios.' });
-  if (emailJaExiste(dados.email, paciente.id)) return res.status(409).json({ erro: 'Este e-mail já está cadastrado.' });
-
-  Object.assign(paciente, dados);
-  res.json(paciente);
+  try {
+    const resultado = await pool.query(
+      `UPDATE pacientes SET nome = $1, email = $2, telefone = $3, nascimento = $4
+       WHERE id = $5 RETURNING ${COLUNAS}`,
+      [dados.nome, dados.email, dados.telefone, dados.nascimento, id]
+    );
+    if (resultado.rowCount === 0) return res.status(404).json({ erro: 'Paciente não encontrado.' });
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    tratarErro(res, erro);
+  }
 });
 
-// DELETE: 204 indica sucesso sem conteúdo na resposta.
-app.delete('/pacientes/:id', (req, res) => {
-  const indice = pacientes.findIndex((item) => item.id === Number(req.params.id));
-  if (indice === -1) return res.status(404).json({ erro: 'Paciente não encontrado.' });
-
-  pacientes.splice(indice, 1);
-  res.status(204).send();
+app.delete('/pacientes/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!idValido(id)) return res.status(400).json({ erro: 'ID inválido.' });
+  try {
+    const resultado = await pool.query('DELETE FROM pacientes WHERE id = $1', [id]);
+    if (resultado.rowCount === 0) return res.status(404).json({ erro: 'Paciente não encontrado.' });
+    res.status(204).send();
+  } catch (erro) {
+    tratarErro(res, erro);
+  }
 });
 
-// A interface e a API usam o mesmo endereço, inclusive no Render.
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 const porta = process.env.PORT || 3000;
